@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
-
 # from .db import SessionLocal
 from app.models import ClinicalTrial
 from .dependencies import get_pipeline, Pipeline
