@@ -161,32 +161,16 @@ curl "http://localhost:8000/urgent?level=1"
 
 ## 13. Extensibility Hooks
 
-* **`Pipeline.normalize()`**: Insert AI summaries, keyword extraction pre‑merge.
-* **`_calculate_urgency_score`**: Swap in weighted or normalized formula (e.g. recency weight).
-* **Security layer**: Replace static key set with datastore (Redis) mapping key → quota.
+These are *code-level* insertion points a new contributor or reviewer needs to know. They justify design choices (why we wrote thin helpers instead of monolithic functions).
+
+* **`Pipeline.normalize()`** – Add AI summary, keyword extraction, sponsor classification before persisting.
+* **`_calculate_urgency_score()`** – Swap formula or introduce weighted factors (e.g. recency 60%, enrollment 40%).
+* **Security dependency (`api_key_guard`)** – Replace static list with datastore (Redis) mapping key → quota & owner.
+* **DAO/ORM boundary** – Future: move DB writes behind a repository object for easier unit testing (mock repository vs real DB).
 
 ---
 
-## 14. Quick Demo Script
 
-1. `GET /health` (service up).
-2. `POST /run?condition=oncology&days=7` (ingestion).
-3. `GET /summary` (aggregates).
-4. `GET /urgent?level=1` (ranked urgency list).
-5. (Future) Show `summary` field once LLM enrichment added.
+## 14. TL;DR
 
----
-
-## 15. Contributor Onboarding (Future)
-
-Add `CONTRIBUTING.md`: style guide, how to add a new extractor, test conventions, security review checklist, performance regression protocol.
-
----
-
-## 16. License
-
-Use a permissive license (MIT / Apache‑2.0) unless organizational policy dictates otherwise.
-
----
-
-**TL;DR:** This PoC already demonstrates ingestion, normalization, enrichment, persistence, API exposure, and baseline security controls. The roadmap elevates it into a differentiated *trial intelligence service* with minimal incremental complexity.
+A compact backend that ingests clinical trial data, enriches it with a transparent urgency score, and serves focused endpoints with security & scalability hooks ready for incremental upgrade (LLM summaries, async fetch, Postgres, observability).
