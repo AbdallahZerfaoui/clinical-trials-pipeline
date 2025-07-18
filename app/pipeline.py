@@ -163,7 +163,7 @@ class Pipeline:
         )
 
         return trial
-    
+
     def _calculate_urgency_score(self, trial):
         """
         Calculate urgency score based on trial's last update date.
@@ -174,11 +174,11 @@ class Pipeline:
         urgency_score = log(1 + trial.num_subjects) / (days_since_update + 1)
         return round(urgency_score, 2)
 
-    def run_ingestion(self):
+    def run_ingestion(self, condition: str = "cardiology", days: int = 7):
         """
         Run the ingestion pipeline to fetch, normalize, and store clinical trials.
         """
-        trials = self.fetch_trials()
+        trials = self.fetch_trials(condition=condition, days=days)
         for rec in trials:
             trial = self.normalize(rec)
             trial.urgency_score = self._calculate_urgency_score(trial)

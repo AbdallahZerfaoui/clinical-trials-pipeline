@@ -1,6 +1,9 @@
 # my folders 
 data/
 
+# my files
+*backup*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
