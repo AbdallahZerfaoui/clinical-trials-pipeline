@@ -1,0 +1,73 @@
+# config.yaml
+
+# ──────────────── API / Fetch settings ────────────────
+api:
+  base_url: "https://clinicaltrials.gov"
+  endpoints:
+    studies: "/api/v2/studies"
+  request:
+    timeout: 10               # seconds
+    page_size: 1000           # records per page
+    query_template:           # must include {start_date}
+      "AREA[LastUpdatePostDate]RANGE[{start_date},MAX]"
+
+# ──────────────── Pipeline defaults ────────────────
+pipeline:
+  default_condition: oncology
+  date_range:
+    days_back: 7              # look back this many days from today
+  storage:
+    raw_json_path: data/clinical_trials.json
+    output_format: json       # json | csv | parquet | ...
+
+# ──────────────── Database / SQLAlchemy ────────────────
+database:
+  # e.g. postgresql://user:pass@host:port/dbname
+  url: sqlite:///data/clinical_trials.db
+  echo: false                 # if true, SQLAlchemy logs all SQL
+  pool:
+    size: 5                   # number of connections in pool
+    max_overflow: 10          # extra connections beyond pool size
+
+# ──────────────── Logging ────────────────
+logging:
+  level: INFO                 # DEBUG | INFO | WARNING | ERROR | CRITICAL
+  to_file: false              # write logs to file if true
+  file_path: logs/pipeline.log
+
+# ──────────────── Scheduling (optional) ────────────────
+scheduling:
+  # Use cron syntax or an interval block
+  cron: "0 0 * * *"           # daily at midnight
+  timezone: Europe/Berlin
+
+# ──────────────── AWS (future) ────────────────
+aws:
+  region: eu-west-1
+  lambda:
+    function_name: clinical_trials_fetcher
+    memory_size: 128          # in MB
+    timeout: 30               # seconds
+  s3:
+    bucket_name: your-bucket-name
+    prefix: clinical_trials/raw/
+  rds:
+    endpoint: your-db-host
+    port: 5432
+    db_name: your_db
+    user: your_user
+    password: your_password
+
+# ──────────────── Notifications (future) ────────────────
+notifications:
+  email:
+    enabled: false
+    smtp:
+      host: smtp.example.com
+      port: 587
+      user: your_email_user
+      password: your_email_pass
+    recipients:
+      - you@example.com
+
+
