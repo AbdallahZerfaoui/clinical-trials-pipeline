@@ -5,6 +5,7 @@ from app.db import engine
 from sqlalchemy.orm import sessionmaker
 import logging
 import json
+import datetime as dt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,11 +24,15 @@ class Pipeline:
 
     def fetch_trials(self, condition: str = "oncology"):
         last_week = (date.today() - timedelta(days=7)).isoformat()
-        url = ("https://clinicaltrials.gov/api/v2/studies")
-        resp = requests.get(url, timeout=10, params={
-            "pageSize": 1000,
-            "query.term": "AREA[LastUpdatePostDate]RANGE[2025-07-17,MAX]",
-            })
+        url = "https://clinicaltrials.gov/api/v2/studies"
+        resp = requests.get(
+            url,
+            timeout=10,
+            params={
+                "pageSize": 1000,
+                "query.term": "AREA[LastUpdatePostDate]RANGE[2025-07-17,MAX]",
+            },
+        )
         logger.info(f"status code: {resp.status_code}")
         data = resp.json()["studies"]
         if data:
@@ -38,14 +43,38 @@ class Pipeline:
         return data
 
     def normalize(self, record):
-        return ClinicalTrial(
+        # Safely get phases - it might not exist
+        design_module = record["protocolSection"].get("designModule", {})
+        phases = design_module.get("phases", [])
+        phase = phases[0] if phases else "Unknown"
+        # Safely get locations_list
+        contact_location_module = record["protocolSection"].get(
+            "contactsLocationsModule", {}
+        )
+        locations_list = contact_location_module.get("locations", [])
+
+        trial = ClinicalTrial(
             trial_id=record["protocolSection"]["identificationModule"]["nctId"],
             title=record["protocolSection"]["identificationModule"]["briefTitle"],
-            phase=record["protocolSection"]["designModule"]["phases"][0] or "Unknown",
-            status=record["protocolSection"]["statusModule"]["overallStatus"][0] or "Unknown",
-            locations=";".join(record["protocolSection"]["contactsLocationsModule"]["locations"]["country"]) or "Global",
-            registered_date=record["protocolSection"]["statusModule"]["StudyFirstSubmitDate"][0]
+            phase=phase,
+            status=record["protocolSection"]["statusModule"]["overallStatus"]
+            or "Unknown",
+            registered_date=dt.datetime.fromisoformat(
+                record["protocolSection"]["statusModule"]["studyFirstSubmitDate"]
+            ),
+            snapshot_ts=dt.datetime.now(),
         )
+        # locations_list=record["protocolSection"]["contactsLocationsModule"]["locations"]
+        if len(locations_list) > 1:
+            trial["locations"] = ";".join(
+                set(locations_list[i]["country"] for i in range(len(locations_list)))
+            )
+        elif locations_list:
+            trial["locations"] = locations_list[0]["country"]
+        else:
+            trial["locations"] = "Global"
+
+        return trial
 
     def run_ingestion(self):
         trials = self.fetch_trials()
