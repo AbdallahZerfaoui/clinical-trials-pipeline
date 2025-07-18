@@ -14,5 +14,6 @@ class ClinicalTrial(Base):
     status = Column(String)
     locations = Column(String)
     registered_date = Column(Date)
+    last_update_date = Column(Date)
     snapshot_ts = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
