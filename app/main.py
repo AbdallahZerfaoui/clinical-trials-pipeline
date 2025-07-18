@@ -1,11 +1,18 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 
 # from .db import SessionLocal
 from app.models import ClinicalTrial
 from .dependencies import get_pipeline, Pipeline
 from .security import api_key_guard
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="ClinicalTrials.gov PoC")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 welcome_message = "As a demo of exactly the kind of automation I’d build, \
 I’ve created an Active Oncology Trial Alerts endpoint. \
@@ -16,11 +23,13 @@ It’s live at [PoC URL] and the full Terraform + Python code is at [GitHub link
 
 
 @app.get("/", dependencies=[Depends(api_key_guard)])
-def read_root():
+@limiter.limit("10/minute")
+def read_root(request: Request):
     """
     Root endpoint that returns a welcome message.
     """
     return {"message": welcome_message}
+
 
 @app.get("/health")
 def health_check():
@@ -28,6 +37,7 @@ def health_check():
     Health check endpoint to verify the service is running.
     """
     return {"status": "ok"}
+
 
 @app.get("/ping_db")
 def ping_db(pipeline: Pipeline = Depends(get_pipeline)):
@@ -37,9 +47,16 @@ def ping_db(pipeline: Pipeline = Depends(get_pipeline)):
     try:
         # Simple query to check if database is accessible
         count = pipeline.session.query(ClinicalTrial).count()
-        return {"status": "ok", "message": "Database connection successful", "total_trials": count}
+        return {
+            "status": "ok",
+            "message": "Database connection successful",
+            "total_trials": count,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Database connection failed: {str(e)}"
+        )
+
 
 @app.post("/run")
 def trigger_run(
