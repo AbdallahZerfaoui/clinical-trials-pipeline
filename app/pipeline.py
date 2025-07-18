@@ -1,11 +1,12 @@
 import requests
 from datetime import date, timedelta
-from app.models import ClinicalTrial, Base
-from app.db import engine
-from sqlalchemy.orm import sessionmaker
 import logging
 import json
 import datetime as dt
+from .models import ClinicalTrial, Base
+from .db import engine
+from .config import Config
+from sqlalchemy.orm import sessionmaker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class Pipeline:
         self.initialize_db()
         Session = sessionmaker(bind=engine)
         self.session = Session()
+        self.config = Config("config.yaml")
 
     @staticmethod
     def initialize_db():
@@ -23,13 +25,13 @@ class Pipeline:
         logger.info("[initialize] Database initialized.")
 
     def fetch_trials(self, condition: str = "oncology"):
-        last_week = (date.today() - timedelta(days=7)).isoformat()
-        url = "https://clinicaltrials.gov/api/v2/studies"
+        # last_week = (date.today() - timedelta(days=7)).isoformat()
+        url = f"{self.config.get('api', 'base_url')}{self.config.get('api', 'endpoints', 'studies')}"
         resp = requests.get(
             url,
             timeout=10,
             params={
-                "pageSize": 1000,
+                "pageSize": self.config.get('api', 'request', 'page_size'),
                 "query.term": "AREA[LastUpdatePostDate]RANGE[2025-07-17,MAX]",
             },
         )
@@ -66,13 +68,13 @@ class Pipeline:
         )
         # locations_list=record["protocolSection"]["contactsLocationsModule"]["locations"]
         if len(locations_list) > 1:
-            trial["locations"] = ";".join(
+            trial.locations = ";".join(
                 set(locations_list[i]["country"] for i in range(len(locations_list)))
             )
         elif locations_list:
-            trial["locations"] = locations_list[0]["country"]
+            trial.locations = locations_list[0]["country"]
         else:
-            trial["locations"] = "Global"
+            trial.locations = "Global"
 
         return trial
 
